@@ -22,7 +22,7 @@ export const dataWriterLambdaFunction = (scope: CdkDemoStack, config: Config, s3
       }
     });
 
-    s3Bucket.grantWrite(lambdaFunction);
+    s3Bucket.grantPut(lambdaFunction);
 
     return lambdaFunction;
    }
