@@ -1,78 +1,61 @@
 import { Tracing } from "aws-cdk-lib/aws-lambda";
-import { CdkDemoStack } from "../lib/cdk_demo-stack";
-import { Config } from "../lib/config/Config";
-import { Environment } from "../lib/config/Environment";
+
 import { Match, Template } from "aws-cdk-lib/assertions";
+import { CdkDemoApp } from "../lib/cdkDemoApp";
+import * as cdk from 'aws-cdk-lib';
 
-const cdk = require("aws-cdk-lib");
+import { assert } from "console";
+import { ProcessingServiceStack } from "../lib/stacks/processingServiceStack";
+import { Environments } from "../lib/configuration/environments";
+import { ApiGatewayStack } from "../lib/stacks/apiGatewayStack";
+
+
 describe("CdkDemoStack", () => {
-    test("Should have one Lambda Function", () => {
-      const app = new cdk.App();
-      const config: Config = {
-          RandommerApiKey: "API_KEY",
-          RandommerApiUrl: "API_URL",
-          Environment: Environment.Development
-      };
-      const stack = new CdkDemoStack(app,"CdkDemoStack",config);
-      const template = Template.fromStack(stack);
+    test("Should not deploy apigageway in DEV for sa-east-1", () => {
+        const app = new cdk.App()
+        app.node.setContext("environment", "DEV");
+        const cdkDemoApp = new CdkDemoApp(app);
 
-      template.resourceCountIs("AWS::Lambda::Function", 1);
-    });
+        cdkDemoApp.Deploy();
+        expect(() => app.synth().getStackByName("CdkDemoApiGatewayStackSa-DEV")).toThrow(Error);
+      });
+    
+      test("Should deploy apigageway in PRD for sa-east-1", () => {
+        const app = new cdk.App()
+        app.node.setContext("environment", "PRD");
+        const cdkDemoApp = new CdkDemoApp(app);
 
-    test("Should have one S3 Bucket", () => {
-        const app = new cdk.App();
-        const config: Config = {
-            RandommerApiKey: "API_KEY",
-            RandommerApiUrl: "API_URL",
-            Environment: Environment.Development
-        };
-        const stack = new CdkDemoStack(app,"CdkDemoStack",config);
-        const template = Template.fromStack(stack);
-  
-        template.resourceCountIs("AWS::S3::Bucket", 1);
+        cdkDemoApp.Deploy();
+        expect(() => app.synth().getStackByName("CdkDemoApiGatewayStackSa-PRD")).toBeDefined();
       });
 
-      test("Should have Lambda Function without tracing in dev", () => {
-        const app = new cdk.App();
-        const config: Config = {
-            RandommerApiKey: "API_KEY",
-            RandommerApiUrl: "API_URL",
-            Environment: Environment.Development
-        };
+      test("Tracing should be enabled in PROD", () => {
+        const app = new cdk.App()
+        const processingStack = new ProcessingServiceStack(app, "ProcTestStack", {Environment: Environments.PRD});
+        const apiGatewayStack = new ApiGatewayStack(app, "ApiTestStack",processingStack.sqsQueue, "region", {Environment: Environments.PRD});
 
-        const stack = new CdkDemoStack(app,"CdkDemoStack",config);
-        const template = Template.fromStack(stack);
+        const template = Template.fromStack(apiGatewayStack);
 
         template.hasResourceProperties(
-            "AWS::Lambda::Function",
-            Match.not(Match.objectLike({
-                Properties: {
-                    TracingConfig: 
-                    {
-                        Mode: 'Active',
-                    },
-                },
-            }))
+            "AWS::ApiGateway::Stage",
+            Match.objectLike({
+                TracingEnabled: true
+            })
           );
       });
 
-      test("Should have Lambda Function with tracing in prd", () => {
-        const app = new cdk.App();
-        const config: Config = {
-            RandommerApiKey: "API_KEY",
-            RandommerApiUrl: "API_URL",
-            Environment: Environment.Production
-        };
-        
-        const stack = new CdkDemoStack(app,"CdkDemoStack",config);
-        const template = Template.fromStack(stack);
+      test("Tracing should be disable in DEV", () => {
+        const app = new cdk.App()
+        const processingStack = new ProcessingServiceStack(app, "ProcTestStack", {Environment: Environments.DEV});
+        const apiGatewayStack = new ApiGatewayStack(app, "ApiTestStack",processingStack.sqsQueue, "region", {Environment: Environments.DEV});
 
-        template.hasResource("AWS::Lambda::Function", {
-            Properties: {
-                TracingConfig: {
-                    Mode: 'Active',
-                },
-            },
-        });
+        const template = Template.fromStack(apiGatewayStack);
+
+        template.hasResourceProperties(
+            "AWS::ApiGateway::Stage",
+            Match.objectLike({
+                TracingEnabled: false
+            })
+          );
       });
 });

@@ -2,18 +2,26 @@ import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import * as ApiGW from 'aws-cdk-lib/aws-apigateway';
 import * as IAM from 'aws-cdk-lib/aws-iam';
+import { CdkDemoProps } from '../configuration/cdkDemoProps';
+import { Environments } from '../configuration/environments';
 
 
 export class ApiGatewayStack extends cdk.Stack {
 
-  constructor(scope: Construct, id: string, backendSqsQueue:cdk.aws_sqs.Queue, backendRegion:string,  props?: cdk.StackProps) {
+  constructor(scope: Construct, id: string, backendSqsQueue:cdk.aws_sqs.Queue, backendRegion:string,  props: CdkDemoProps) {
     super(scope, id, props);
+
     const integrationRole = new IAM.Role(this, 'integration-role', {
         assumedBy: new IAM.ServicePrincipal('apigateway.amazonaws.com'),
       });
     
     backendSqsQueue.grantSendMessages(integrationRole);
-    const api = new ApiGW.RestApi(this, 'cdk-demo-api', {});
+    const api = new ApiGW.RestApi(this, 'cdk-demo-api', {
+      deployOptions: {
+        stageName: Environments[props.Environment],
+        tracingEnabled: (props.Environment == Environments.PRD) ? true : false
+      }
+    });
     const sendMessageIntegration = new ApiGW.AwsIntegration({
         service: 'sqs',
         region: backendRegion,

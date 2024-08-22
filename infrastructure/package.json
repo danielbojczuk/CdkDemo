@@ -2,7 +2,7 @@
   "name": "cdk_demo",
   "version": "0.1.0",
   "bin": {
-    "cdk_demo": "bin/cdk_demo.js"
+    "cdk_demo": "bin/cdkDemo.js"
   },
   "scripts": {
     "build": "tsc",
