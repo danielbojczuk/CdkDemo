@@ -1,10 +1,6 @@
-import { Tracing } from "aws-cdk-lib/aws-lambda";
-
 import { Match, Template } from "aws-cdk-lib/assertions";
 import { CdkDemoApp } from "../lib/cdkDemoApp";
 import * as cdk from 'aws-cdk-lib';
-
-import { assert } from "console";
 import { ProcessingServiceStack } from "../lib/stacks/processingServiceStack";
 import { Environments } from "../lib/configuration/environments";
 import { ApiGatewayStack } from "../lib/stacks/apiGatewayStack";
